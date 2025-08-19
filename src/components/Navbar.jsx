@@ -1,12 +1,18 @@
-export default function Navbar() {
+import { TbPlane } from "react-icons/tb";
+
+export default function Header() {
   return (
-    <nav className="bg-blue-700 text-white p-4 flex justify-between items-center">
-      <h1 className="font-bold text-xl">Travel Planner</h1>
-      <ul className="flex gap-4">
-        <li className="hover:text-blue-300 cursor-pointer">Home</li>
-        <li className="hover:text-blue-300 cursor-pointer">Trips</li>
-        <li className="hover:text-blue-300 cursor-pointer">About</li>
-      </ul>
-    </nav>
+    <header className="flex justify-between items-center py-4 px-8">
+      <div className="flex items-center gap-2">
+        <TbPlane size={28} className="text-teal-600" />
+        <span className="font-bold text-xl">TripPlanner</span>
+      </div>
+
+      <nav className="flex gap-6 text-gray-700">
+        <a href="#" className="hover:text-teal-600">Features</a>
+        <a href="#" className="hover:text-teal-600">About</a>
+        <a href="#" className="hover:text-teal-600">Contact</a>
+      </nav>
+    </header>
   );
 }
