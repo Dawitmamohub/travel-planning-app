@@ -1,4 +1,5 @@
 import { TbPlane } from "react-icons/tb";
+import { Link } from "react-router-dom";
 
 export default function Header() {
   return (
@@ -9,9 +10,10 @@ export default function Header() {
       </div>
 
       <nav className="flex gap-6 text-gray-700">
-        <a href="#" className="hover:text-teal-600">Features</a>
-        <a href="#" className="hover:text-teal-600">About</a>
-        <a href="#" className="hover:text-teal-600">Contact</a>
+        <Link to="/" className="hover:text-teal-600">Home</Link>
+        <Link to="/dashboard" className="hover:text-teal-600">Dashboard</Link>
+        <Link to="/about">About</Link> 
+        <Link to="/contact">Contact</Link>
       </nav>
     </header>
   );

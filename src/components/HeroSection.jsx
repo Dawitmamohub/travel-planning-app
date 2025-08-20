@@ -21,7 +21,7 @@ export default function HeroSection() {
 
       {/* Bottom Hero Image */}
       <img
-        src="/src/assets/hero-photo.jpg"  // <--- place your real image name here
+        src="/src/assets/hero-photo.jpg"
         alt="Travel"
         className="mt-12 rounded-xl shadow-lg w-[80%] mx-auto"
       />
