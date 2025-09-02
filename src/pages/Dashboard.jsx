@@ -1,10 +1,11 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { MapPin, Calendar, Eye } from "lucide-react";
 
 export default function Dashboard({ trips = [], onDelete }) {
   const navigate = useNavigate();
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const defaultTrips = [
     {
@@ -38,6 +39,12 @@ export default function Dashboard({ trips = [], onDelete }) {
 
   const displayTrips = trips.length > 0 ? trips : defaultTrips;
 
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this trip?")) {
+      onDelete(id);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center p-8">
       <div className="w-full max-w-6xl">
@@ -61,12 +68,6 @@ export default function Dashboard({ trips = [], onDelete }) {
             >
               + Add New Trip
             </button>
-            <Link
-              to="/api-demo"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
-            >
-              🔗 API Demo
-            </Link>
           </div>
         </div>
 
@@ -89,11 +90,19 @@ export default function Dashboard({ trips = [], onDelete }) {
                 {Math.ceil((new Date(trip.endDate) - new Date(trip.startDate)) / (1000 * 60 * 60 * 24)) + 1} days
               </p>
               <p className="text-gray-500 text-sm mb-4">{trip.notes}</p>
-              <Link to={`/trip/${trip.id}`}>
-                <button className="flex items-center px-4 py-2 border border-teal-500 text-teal-600 rounded-lg hover:bg-teal-50 transition">
-                  <Eye size={16} className="mr-2" /> View Details
+              <div className="flex gap-2">
+                <Link to={`/trip/${trip.id}`}>
+                  <button className="flex items-center px-4 py-2 border border-teal-500 text-teal-600 rounded-lg hover:bg-teal-50 transition">
+                    <Eye size={16} className="mr-2" /> View Details
+                  </button>
+                </Link>
+                <button
+                  onClick={() => handleDelete(trip.id)}
+                  className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-red-700 transition"
+                >
+                  Delete Trip
                 </button>
-              </Link>
+              </div>
             </div>
           ))}
         </div>
