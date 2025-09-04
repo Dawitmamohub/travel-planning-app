@@ -1,310 +1,312 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
-import { ArrowLeft, Edit3, Plus, Check, X, CloudSun, MapPin, Calendar } from "lucide-react";
+import {
+  ArrowLeft,
+  Edit3,
+  Plus,
+  Check,
+  X,
+  CloudSun,
+  MapPin,
+  Calendar,
+  Loader2,
+} from "lucide-react";
 
-const Badge = ({ children, variant = "secondary", className = "" }) => {
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
-      {children}
-    </span>
-  );
-};
+// Badge component
+const Badge = ({ children, className = "" }) => (
+  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
+    {children}
+  </span>
+);
 
 export default function TripDetails({ trip, onBack, onUpdate }) {
+  const navigate = useNavigate();
+
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [isEditingItinerary, setIsEditingItinerary] = useState(false);
-  const [editedNotes, setEditedNotes] = useState(trip.notes || '');
+  const [editedNotes, setEditedNotes] = useState(trip.notes || "");
   const [editedItinerary, setEditedItinerary] = useState(trip.itinerary || []);
-  const [newItineraryItem, setNewItineraryItem] = useState('');
+  const [newItineraryItem, setNewItineraryItem] = useState("");
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long', 
-      day: 'numeric'
+  // Weather state
+  const [weather, setWeather] = useState(null);
+  const [loadingWeather, setLoadingWeather] = useState(false);
+  const [errorWeather, setErrorWeather] = useState(null);
+
+  // Dynamic photo
+  const [photo, setPhoto] = useState(null);
+
+  const WEATHER_API_KEY = "bd172694d69510e89d0b8f0418565adb"; // your key
+  const UNSPLASH_ACCESS_KEY = "5fTHzdMK5YQ9iyCRWCu6y9LwBNw6xf9UniYwgvDN5P4"; // your key
+
+  const formatDate = (dateString) =>
+    new Date(dateString).toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
-  };
 
-  const getDaysBetween = (startDate, endDate) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const timeDiff = end.getTime() - start.getTime();
-    const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-    return dayDiff + 1;
-  };
+  const getDaysBetween = (startDate, endDate) =>
+    Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
 
+  // Fetch weather
+  useEffect(() => {
+    if (!trip.destination) return;
+    const city = trip.destination.split(",")[0].trim();
+    setLoadingWeather(true);
+
+    const fetchWeather = async () => {
+      try {
+        const currentRes = await axios.get(
+          `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${WEATHER_API_KEY}&units=metric`
+        );
+        const forecastRes = await axios.get(
+          `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${WEATHER_API_KEY}&units=metric`
+        );
+
+        const dailyForecast = [];
+        const seenDates = new Set();
+        forecastRes.data.list.forEach((entry) => {
+          const [date, time] = entry.dt_txt.split(" ");
+          if (time === "12:00:00" && !seenDates.has(date)) {
+            seenDates.add(date);
+            dailyForecast.push({
+              date: new Date(date).toLocaleDateString("en-US", { weekday: "short" }),
+              temp: entry.main.temp,
+              icon: entry.weather[0].icon,
+              description: entry.weather[0].description,
+            });
+          }
+        });
+
+        setWeather({ current: currentRes.data, forecast: dailyForecast.slice(0, 5) });
+        setErrorWeather(null);
+      } catch {
+        setErrorWeather("Unable to fetch weather.");
+      } finally {
+        setLoadingWeather(false);
+      }
+    };
+
+    fetchWeather();
+  }, [trip]);
+
+  // Fetch destination photo
+  useEffect(() => {
+    if (!trip.destination) return;
+
+    const fetchPhoto = async () => {
+      try {
+        const res = await axios.get(
+          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(
+            trip.destination
+          )}&client_id=${UNSPLASH_ACCESS_KEY}&orientation=landscape`
+        );
+        if (res.data.results.length > 0) setPhoto(res.data.results[0].urls.regular);
+      } catch (err) {
+        console.error("Unsplash fetch error:", err);
+      }
+    };
+
+    fetchPhoto();
+  }, [trip]);
+
+  // Handlers
   const handleSaveNotes = () => {
     onUpdate({ ...trip, notes: editedNotes.trim() || undefined });
     setIsEditingNotes(false);
   };
-
-  const handleCancelNotesEdit = () => {
-    setEditedNotes(trip.notes || '');
+  const handleCancelNotes = () => {
+    setEditedNotes(trip.notes || "");
     setIsEditingNotes(false);
   };
-
-  const handleAddItineraryItem = () => {
+  const handleAddItinerary = () => {
     if (newItineraryItem.trim()) {
-      const updatedItinerary = [...editedItinerary, newItineraryItem.trim()];
-      setEditedItinerary(updatedItinerary);
-      setNewItineraryItem('');
+      setEditedItinerary([...editedItinerary, newItineraryItem.trim()]);
+      setNewItineraryItem("");
     }
   };
-
-  const handleRemoveItineraryItem = (index) => {
-    const updatedItinerary = editedItinerary.filter((_, i) => i !== index);
-    setEditedItinerary(updatedItinerary);
+  const handleRemoveItinerary = (index) => {
+    setEditedItinerary(editedItinerary.filter((_, i) => i !== index));
   };
-
   const handleSaveItinerary = () => {
     onUpdate({ ...trip, itinerary: editedItinerary });
     setIsEditingItinerary(false);
   };
-
-  const handleCancelItineraryEdit = () => {
+  const handleCancelItinerary = () => {
     setEditedItinerary(trip.itinerary || []);
-    setNewItineraryItem('');
+    setNewItineraryItem("");
     setIsEditingItinerary(false);
   };
 
   return (
     <div className="min-h-screen p-6 lg:p-8">
-      {/* Header */}
       <div className="max-w-4xl mx-auto mb-8">
         <div className="flex items-center gap-4 mb-6">
-          <Button
-            onClick={onBack}
-            variant="outline"
-            size="sm"
-            className="text-gray-600 border-gray-300 hover:bg-gray-50"
-          >
+          <Button onClick={onBack} variant="outline" size="sm" className="text-gray-600 border-gray-300 hover:bg-gray-50">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Trips
           </Button>
         </div>
 
-        {/* Trip Header */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2">
-            <h1 className="text-3xl md:text-4xl text-gray-900 mb-4">{trip.name}</h1>
-            <div className="flex flex-wrap gap-4 text-gray-600">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-teal-600" />
-                <span>{trip.destination}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-teal-600" />
-                <span>{formatDate(trip.startDate)} - {formatDate(trip.endDate)}</span>
-              </div>
-            </div>
-            <Badge variant="secondary" className="mt-4 bg-teal-100 text-teal-700">
-              {getDaysBetween(trip.startDate, trip.endDate)} days
-            </Badge>
+        <h1 className="text-3xl md:text-4xl text-gray-900 mb-4">{trip.name}</h1>
+
+        <div className="flex flex-wrap gap-4 text-gray-600 mb-4">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-teal-600" />
+            {trip.destination}
           </div>
-
-          {/* Weather Widget Placeholder */}
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-sky-100 to-teal-100">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <CloudSun className="h-5 w-5 text-orange-500" />
-                Weather
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center">
-                <div className="text-3xl mb-2">☀️</div>
-                <div className="text-xl text-gray-900 mb-1">24°C</div>
-                <div className="text-sm text-gray-600">Mostly Sunny</div>
-                <div className="text-xs text-gray-500 mt-2">Weather data placeholder</div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-teal-600" />
+            {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+          </div>
         </div>
-      </div>
 
-      {/* Content Grid */}
-      <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Itinerary Section */}
-        <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl text-gray-900">Itinerary</CardTitle>
-              <Button
-                onClick={() => setIsEditingItinerary(!isEditingItinerary)}
-                variant="outline"
-                size="sm"
-                className="text-teal-600 border-teal-200 hover:bg-teal-50"
-              >
-                <Edit3 className="h-4 w-4 mr-1" />
-                {isEditingItinerary ? 'Cancel' : 'Edit'}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {isEditingItinerary ? (
-              <div className="space-y-4">
-                {/* Add New Item */}
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Add new itinerary item..."
-                    value={newItineraryItem}
-                    onChange={(e) => setNewItineraryItem(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddItineraryItem()}
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={handleAddItineraryItem}
-                    size="sm"
-                    className="bg-teal-600 hover:bg-teal-700"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+        <Badge className="bg-teal-100 text-teal-700 mb-6">{getDaysBetween(trip.startDate, trip.endDate)} days</Badge>
 
-                {/* Editable Items */}
-                {editedItinerary.map((item, index) => (
-                  <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-1 text-gray-900">{item}</div>
-                    <Button
-                      onClick={() => handleRemoveItineraryItem(index)}
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-
-                {/* Save/Cancel Buttons */}
-                <div className="flex gap-2 pt-4">
-                  <Button
-                    onClick={handleSaveItinerary}
-                    size="sm"
-                    className="bg-teal-600 hover:bg-teal-700"
-                  >
-                    <Check className="h-4 w-4 mr-1" />
-                    Save
-                  </Button>
-                  <Button
-                    onClick={handleCancelItineraryEdit}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {(trip.itinerary && trip.itinerary.length > 0) ? (
-                  trip.itinerary.map((item, index) => (
-                    <div key={index} className="flex items-start gap-3 p-3 bg-gradient-to-r from-teal-50 to-sky-50 rounded-lg">
-                      <div className="w-6 h-6 bg-teal-600 text-white rounded-full flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
-                        {index + 1}
-                      </div>
-                      <p className="text-gray-900 flex-1">{item}</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Calendar className="h-6 w-6 text-gray-400" />
-                    </div>
-                    <p>No itinerary items yet</p>
-                    <p className="text-sm">Click Edit to add activities</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Notes & Photo Section */}
-        <div className="space-y-6">
-          {/* Notes Card */}
-          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Notes */}
+          <Card className="bg-teal-100 shadow-md">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xl text-gray-900">Notes</CardTitle>
-                <Button
-                  onClick={() => setIsEditingNotes(!isEditingNotes)}
-                  variant="outline"
-                  size="sm"
-                  className="text-teal-600 border-teal-200 hover:bg-teal-50"
-                >
-                  <Edit3 className="h-4 w-4 mr-1" />
-                  {isEditingNotes ? 'Cancel' : 'Edit'}
-                </Button>
-              </div>
+              <CardTitle>Notes</CardTitle>
             </CardHeader>
             <CardContent>
               {isEditingNotes ? (
-                <div className="space-y-4">
+                <>
                   <Textarea
                     value={editedNotes}
                     onChange={(e) => setEditedNotes(e.target.value)}
-                    placeholder="Add your trip notes, memories, or reminders..."
-                    className="min-h-24 resize-none"
                     rows={4}
+                    className="mb-2"
                   />
                   <div className="flex gap-2">
-                    <Button
-                      onClick={handleSaveNotes}
-                      size="sm"
-                      className="bg-teal-600 hover:bg-teal-700"
-                    >
-                      <Check className="h-4 w-4 mr-1" />
-                      Save
-                    </Button>
-                    <Button
-                      onClick={handleCancelNotesEdit}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Cancel
-                    </Button>
+                    <Button onClick={handleSaveNotes}><Check className="mr-1 w-4 h-4" /> Save</Button>
+                    <Button onClick={handleCancelNotes} variant="outline"><X className="mr-1 w-4 h-4" /> Cancel</Button>
                   </div>
-                </div>
+                </>
               ) : (
                 <div>
-                  {trip.notes ? (
-                    <p className="text-gray-900 whitespace-pre-wrap">{trip.notes}</p>
-                  ) : (
-                    <div className="text-center py-6 text-gray-500">
-                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <Edit3 className="h-6 w-6 text-gray-400" />
-                      </div>
-                      <p>No notes yet</p>
-                      <p className="text-sm">Click Edit to add notes</p>
+                  <p className="mb-2">{trip.notes || "No notes added."}</p>
+                  <Button onClick={() => setIsEditingNotes(true)} size="sm">
+                    <Edit3 className="mr-1 w-4 h-4" /> Edit
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Itinerary */}
+          <Card className="bg-teal-100 shadow-md">
+            <CardHeader>
+              <CardTitle>Itinerary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isEditingItinerary ? (
+                <>
+                  {editedItinerary.map((item, i) => (
+                    <div key={i} className="flex justify-between items-center mb-1">
+                      <span>{item}</span>
+                      <Button onClick={() => handleRemoveItinerary(i)} variant="outline" size="sm"><X className="w-3 h-3" /></Button>
                     </div>
+                  ))}
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      placeholder="New itinerary item"
+                      value={newItineraryItem}
+                      onChange={(e) => setNewItineraryItem(e.target.value)}
+                    />
+                    <Button onClick={handleAddItinerary}><Plus className="w-4 h-4" /></Button>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <Button onClick={handleSaveItinerary}><Check className="mr-1 w-4 h-4" /> Save</Button>
+                    <Button onClick={handleCancelItinerary} variant="outline"><X className="mr-1 w-4 h-4" /> Cancel</Button>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  {trip.itinerary.length === 0 ? (
+                    <p>No itinerary added.</p>
+                  ) : (
+                    <ul className="list-disc pl-5 mb-2">
+                      {trip.itinerary.map((item, i) => (
+                        <li key={i}>{item}</li>
+                      ))}
+                    </ul>
                   )}
+                  <Button onClick={() => setIsEditingItinerary(true)} size="sm">
+                    <Edit3 className="mr-1 w-4 h-4" /> Edit
+                  </Button>
                 </div>
               )}
             </CardContent>
           </Card>
 
           {/* Destination Photo */}
-          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm overflow-hidden">
+          <Card className="lg:col-span-2 shadow-md overflow-hidden">
             <CardHeader>
-              <CardTitle className="text-xl text-gray-900">Destination</CardTitle>
+              <CardTitle>Destination</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="relative">
-                <img
-                  src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
-                  alt={`Beautiful view of ${trip.destination}`}
-                  className="w-full h-48 object-cover"
-                />
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                  <p className="text-white text-lg">{trip.destination}</p>
+              {photo ? (
+                <img src={photo} alt={trip.destination} className="w-full h-64 object-cover" />
+              ) : (
+                <div className="w-full h-64 bg-gray-200 flex items-center justify-center">
+                  <p className="text-gray-500">Loading photo...</p>
                 </div>
-              </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Weather */}
+          <Card className="lg:col-span-2 shadow-md bg-gradient-to-br from-sky-100 to-teal-100">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CloudSun className="h-5 w-5 text-orange-500" />
+                Weather
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingWeather ? (
+                <div className="flex justify-center items-center py-6 text-gray-500">
+                  <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading weather...
+                </div>
+              ) : errorWeather ? (
+                <p className="text-sm text-red-500">{errorWeather}</p>
+              ) : weather ? (
+                <div>
+                  <div className="text-center mb-4">
+                    <img
+                      src={`https://openweathermap.org/img/wn/${weather.current.weather[0].icon}@2x.png`}
+                      alt={weather.current.weather[0].description}
+                      className="mx-auto"
+                    />
+                    <div className="text-xl text-gray-900 mb-1">{Math.round(weather.current.main.temp)}°C</div>
+                    <div className="text-sm text-gray-600 capitalize">{weather.current.weather[0].description}</div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {weather.forecast.map((day, i) => (
+                      <div key={i} className="bg-white/70 rounded-lg p-2 text-center shadow-sm">
+                        <div className="text-xs font-medium text-gray-600 mb-1">{day.date}</div>
+                        <img
+                          src={`https://openweathermap.org/img/wn/${day.icon}.png`}
+                          alt={day.description}
+                          className="mx-auto w-10 h-10"
+                        />
+                        <div className="text-sm font-semibold text-gray-800">{Math.round(day.temp)}°C</div>
+                        <div className="text-xs text-gray-500 capitalize">{day.description}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No weather data</p>
+              )}
             </CardContent>
           </Card>
         </div>

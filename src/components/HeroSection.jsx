@@ -41,19 +41,19 @@ export function Home({ onGetStarted }) {
             {/* Feature Icons Under Button */}
             <div className="flex justify-center lg:justify-start gap-8 mt-6">
               <div className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center shadow">
+                <div className="w-10 h-10 bg-sky-100 rounded-full flex items-center justify-center shadow">
                   <MapPin className="h-6 w-6 text-teal-600" />
                 </div>
                 <span className="text-sm text-gray-600">Destinations</span>
               </div>
               <div className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center shadow">
+                <div className="w-10 h-10 bg-sky-100 rounded-full flex items-center justify-center shadow">
                   <Calendar className="h-6 w-6 text-teal-600" />
                 </div>
                 <span className="text-sm text-gray-600">Scheduling</span>
               </div>
               <div className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center shadow">
+                <div className="w-10 h-10 bg-sky-100 rounded-full flex items-center justify-center shadow">
                   <Camera className="h-6 w-6 text-teal-600" />
                 </div>
                 <span className="text-sm text-gray-600">Memories</span>
