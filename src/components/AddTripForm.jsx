@@ -1,263 +1,322 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "../components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Textarea } from "../components/ui/textarea";
+import { Plane, Hotel, Search, Loader2, ClipboardList } from "lucide-react";
+import { searchFlights, searchHotels, getCityCode } from "../utils/api";
+import FlightCard from "../components/FlightCard";
+import HotelCard from "../components/HotelCard";
 
-const AddTripForm = ({ onSubmit }) => {
+const AddTrip = ({ onSubmit }) => {
+  const navigate = useNavigate();
+
   const [tripName, setTripName] = useState("");
   const [destination, setDestination] = useState("");
+  const [origin, setOrigin] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
 
+  // Flight & Hotel
+  const [flights, setFlights] = useState([]);
+  const [hotels, setHotels] = useState([]);
+  const [selectedFlight, setSelectedFlight] = useState(null);
+  const [selectedHotel, setSelectedHotel] = useState(null);
+  const [searchingFlights, setSearchingFlights] = useState(false);
+  const [searchingHotels, setSearchingHotels] = useState(false);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // Basic validation
     if (!tripName || !destination || !startDate || !endDate) {
       alert("Please fill in all required fields");
       return;
     }
-    
-    // Create trip object
+
     const newTrip = {
-      id: Date.now(), // Simple ID generation
-      title: tripName,
-      destination: destination,
-      startDate: new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      endDate: new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      duration: calculateDuration(startDate, endDate),
-      description: notes,
-      details: `Notes: ${notes || 'No additional notes'}`,
+      id: Date.now(),
+      name: tripName,
+      destination,
+      origin,
+      startDate,
+      endDate,
+      notes,
+      flight: selectedFlight || null, // ✅ store flight
+      hotel: selectedHotel || null,   // ✅ store hotel
     };
-    
+
     onSubmit(newTrip);
-    
-    // Reset form
-    setTripName("");
-    setDestination("");
-    setStartDate("");
-    setEndDate("");
-    setNotes("");
+    navigate("/dashboard");
   };
 
-  const calculateDuration = (start, end) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const timeDiff = endDate.getTime() - startDate.getTime();
-    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1; // +1 to include both start and end days
-    return `${daysDiff} days`;
+  const handleSearchFlights = async () => {
+    if (!origin || !destination || !startDate) {
+      alert("Enter origin, destination & start date");
+      return;
+    }
+    setSearchingFlights(true);
+    try {
+      let originCode = origin.length > 3 ? await getCityCode(origin) : origin;
+      let destinationCode =
+        destination.length > 3 ? await getCityCode(destination) : destination;
+
+      const data = await searchFlights(originCode, destinationCode, startDate);
+      setFlights(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSearchingFlights(false);
+    }
+  };
+
+  const handleSearchHotels = async () => {
+    if (!destination || !startDate || !endDate) {
+      alert("Enter destination & dates");
+      return;
+    }
+    setSearchingHotels(true);
+    try {
+      let cityCode =
+        destination.length > 3 ? await getCityCode(destination) : destination;
+
+      const data = await searchHotels(cityCode, startDate, endDate);
+      setHotels(
+        data.map((h) => ({
+          ...h,
+          image: `https://source.unsplash.com/400x300/?hotel,${encodeURIComponent(
+            destination
+          )}`,
+        }))
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSearchingHotels(false);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="add-trip-form">
-      <h2 className="form-title">Trip Details</h2>
-      
-      <div className="form-group">
-        <label htmlFor="tripName" className="form-label">
-          Trip Name *
-        </label>
-        <input
-          type="text"
-          id="tripName"
-          value={tripName}
-          onChange={(e) => setTripName(e.target.value)}
-          placeholder="e.g., Summer Vacation, Business Trip"
-          className="form-input"
-        />
-      </div>
-      
-      <div className="form-group">
-        <label htmlFor="destination" className="form-label">
-          Destination *
-        </label>
-        <input
-          type="text"
-          id="destination"
-          value={destination}
-          onChange={(e) => setDestination(e.target.value)}
-          placeholder="e.g., Paris, France"
-          className="form-input"
-        />
-      </div>
-      
-      <div className="divider"></div>
-      
-      <div className="date-section">
-        <h3 className="section-title">Start Date *</h3>
-        <div className="date-inputs">
-          <div className="date-group">
-            <label className="date-label">Start Date *</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="date-input"
-            />
-          </div>
-          
-          <div className="date-group">
-            <label className="date-label">End Date *</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="date-input"
-            />
-          </div>
-        </div>
-      </div>
-      
-      <div className="divider"></div>
-      
-      <div className="form-group">
-        <label htmlFor="notes" className="form-label">
-          Notes (Optional)
-        </label>
-        <textarea
-          id="notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Add any special notes, reminders, or details about your trip..."
-          className="form-textarea"
-          rows="4"
-        />
-      </div>
-      
-      <div className="divider"></div>
-      
-      <div className="form-actions">
-        <button type="button" className="cancel-button">
-          Cancel
-        </button>
-        <button type="submit" className="submit-button">
-          Save Trip
-        </button>
-      </div>
+    <div className="min-h-screen p-6 lg:p-10 bg-gray-50">
+      <div className="max-w-5xl mx-auto">
+        <h1 className="text-4xl font-bold text-gray-900 mb-8">Plan New Trip</h1>
 
-      <style jsx>{`
-        .add-trip-form {
-          padding: 20px;
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          color: #333;
-        }
-        
-        .form-title {
-          font-size: 24px;
-          font-weight: bold;
-          margin-bottom: 20px;
-          color: #2d3748;
-        }
-        
-        .form-group {
-          margin-bottom: 20px;
-        }
-        
-        .form-label {
-          display: block;
-          font-weight: 600;
-          margin-bottom: 8px;
-          color: #2d3748;
-        }
-        
-        .form-input, .form-textarea {
-          width: 100%;
-          padding: 10px 12px;
-          border: 1px solid #cbd5e0;
-          border-radius: 6px;
-          font-size: 16px;
-          transition: border-color 0.2s;
-        }
-        
-        .form-input:focus, .form-textarea:focus {
-          outline: none;
-          border-color: #4299e1;
-          box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
-        }
-        
-        .form-textarea {
-          resize: vertical;
-          min-height: 100px;
-        }
-        
-        .divider {
-          height: 1px;
-          background-color: #e2e8f0;
-          margin: 25px 0;
-        }
-        
-        .date-section {
-          margin-bottom: 20px;
-        }
-        
-        .section-title {
-          font-size: 18px;
-          font-weight: 600;
-          margin-bottom: 15px;
-          color: #2d3748;
-        }
-        
-        .date-inputs {
-          display: flex;
-          gap: 15px;
-        }
-        
-        .date-group {
-          flex: 1;
-        }
-        
-        .date-label {
-          display: block;
-          font-weight: 600;
-          margin-bottom: 8px;
-          color: #2d3748;
-          font-size: 14px;
-        }
-        
-        .date-input {
-          width: 100%;
-          padding: 10px 12px;
-          border: 1px solid #cbd5e0;
-          border-radius: 6px;
-          font-size: 16px;
-        }
-        
-        .form-actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: 12px;
-          margin-top: 20px;
-        }
-        
-        .cancel-button {
-          padding: 10px 20px;
-          background-color: #fff;
-          color: #4a5568;
-          border: 1px solid #cbd5e0;
-          border-radius: 6px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        
-        .cancel-button:hover {
-          background-color: #f7fafc;
-        }
-        
-        .submit-button {
-          padding: 10px 20px;
-          background-color: #0d9488;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background-color 0.2s;
-        }
-        
-        .submit-button:hover {
-          background-color: #0f766e;
-        }
-      `}</style>
-    </form>
+        <Card className="shadow-xl rounded-2xl border border-gray-200">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-gray-800">
+              Trip Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Trip Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="block mb-2 font-medium text-gray-700">
+                    Trip Name *
+                  </label>
+                  <Input
+                    value={tripName}
+                    onChange={(e) => setTripName(e.target.value)}
+                    placeholder="e.g., Summer Vacation"
+                    className="h-12 text-base"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-2 font-medium text-gray-700">
+                    Destination *
+                  </label>
+                  <Input
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    placeholder="e.g., Paris, France"
+                    className="h-12 text-base"
+                  />
+                </div>
+              </div>
+
+              {/* Origin */}
+              <div>
+                <label className="block mb-2 font-medium text-gray-700">
+                  Departure City
+                </label>
+                <Input
+                  value={origin}
+                  onChange={(e) => setOrigin(e.target.value)}
+                  placeholder="e.g., New York or JFK"
+                  className="h-12 text-base"
+                />
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="block mb-2 font-medium text-gray-700">
+                    Start Date *
+                  </label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-12 text-base"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-2 font-medium text-gray-700">
+                    End Date *
+                  </label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-12 text-base"
+                  />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block mb-2 font-medium text-gray-700">
+                  Notes (Optional)
+                </label>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add reminders or details..."
+                  rows={4}
+                  className="text-base"
+                />
+              </div>
+
+              {/* Flights */}
+              <div className="pt-6 border-t">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <Plane className="h-5 w-5 mr-2 text-teal-600" /> Flights
+                  </h3>
+                  <Button
+                    type="button"
+                    onClick={handleSearchFlights}
+                    disabled={searchingFlights}
+                    className="flex items-center"
+                  >
+                    {searchingFlights ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4 mr-1" />
+                    )}
+                    Search Flights
+                  </Button>
+                </div>
+
+                {flights.length > 0 ? (
+                  <div className="space-y-4">
+                    {flights.slice(0, 3).map((f, i) => (
+                      <FlightCard
+                        key={i}
+                        flight={f}
+                        selected={selectedFlight === f}
+                        onSelect={setSelectedFlight}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">
+                    Enter cities & date, then search for flights.
+                  </p>
+                )}
+              </div>
+
+              {/* Hotels */}
+              <div className="pt-6 border-t">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <Hotel className="h-5 w-5 mr-2 text-teal-600" /> Hotels
+                  </h3>
+                  <Button
+                    type="button"
+                    onClick={handleSearchHotels}
+                    disabled={searchingHotels}
+                    className="flex items-center"
+                  >
+                    {searchingHotels ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4 mr-1" />
+                    )}
+                    Search Hotels
+                  </Button>
+                </div>
+
+                {hotels.length > 0 ? (
+                  <div className="space-y-4">
+                    {hotels.slice(0, 3).map((h, i) => (
+                      <HotelCard
+                        key={i}
+                        hotel={h}
+                        selected={selectedHotel === h}
+                        onSelect={setSelectedHotel}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">
+                    Enter destination & dates, then search for hotels.
+                  </p>
+                )}
+              </div>
+
+              {/* Summary */}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-semibold flex items-center mb-3">
+                  <ClipboardList className="h-5 w-5 mr-2 text-indigo-600" /> Trip Summary
+                </h3>
+                <div className="space-y-3 text-gray-700">
+                  <p>
+                    <strong>Trip Name:</strong> {tripName || "Not set"}
+                  </p>
+                  <p>
+                    <strong>Destination:</strong> {destination || "Not set"}
+                  </p>
+                  <p>
+                    <strong>Dates:</strong>{" "}
+                    {startDate && endDate
+                      ? `${startDate} → ${endDate}`
+                      : "Not set"}
+                  </p>
+                  <p>
+                    <strong>Flight:</strong>{" "}
+                    {selectedFlight
+                      ? `${selectedFlight.itineraries[0].segments[0].departure.iataCode} → ${selectedFlight.itineraries[0].segments[0].arrival.iataCode}`
+                      : "No flight selected"}
+                  </p>
+                  <p>
+                    <strong>Hotel:</strong>{" "}
+                    {selectedHotel ? selectedHotel.name : "No hotel selected"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-4 pt-6 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/dashboard")}
+                  className="h-12 px-6"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" className="h-12 px-8">
+                  Save Trip
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 };
 
-export default AddTripForm;
+export default AddTrip;

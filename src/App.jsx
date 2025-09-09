@@ -48,92 +48,75 @@ const defaultTrips = [
   },
 ];
 
-// TripDetails wrapper
+// Wrapper for Add/Edit Trip
+const TripFormWrapper = ({ trips, onSubmit }) => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const tripToEdit = id ? trips.find((t) => t.id === parseInt(id)) : null;
+
+  const handleSubmit = (tripData) => {
+    onSubmit(tripData);
+    navigate("/dashboard");
+  };
+
+  const handleCancel = () => navigate("/dashboard");
+
+  return <AddTrip trip={tripToEdit} onSubmit={handleSubmit} onCancel={handleCancel} />;
+};
+
+// Wrapper for Trip Details
 const TripDetailsWrapper = ({ trips, onUpdate, onDelete }) => {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const trip = trips.find((t) => t.id === parseInt(id));
+
   if (!trip) return <div className="p-6 text-red-600">Trip not found</div>;
 
   return (
-    <TripDetails 
-      trip={trip} 
-      onBack={() => navigate("/dashboard")} 
+    <TripDetails
+      trip={trip}
+      onBack={() => navigate("/dashboard")}
       onUpdate={onUpdate}
       onDelete={onDelete}
     />
   );
 };
 
-// Add/Edit Trip wrapper
-const TripFormWrapper = ({ trips, onSubmit }) => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-
-  const tripToEdit = id ? trips.find((t) => t.id === parseInt(id)) : null;
-
-  return (
-    <AddTrip
-      trip={tripToEdit}
-      onSubmit={(trip) => {
-        onSubmit(trip);
-        navigate("/dashboard");
-      }}
-      onCancel={() => navigate("/dashboard")}
-    />
-  );
-};
-
 const AppContent = () => {
-  // Load trips from localStorage or use default trips
   const [trips, setTrips] = useState(() => {
-    const savedTrips = localStorage.getItem('travelTrips');
-    return savedTrips ? JSON.parse(savedTrips) : defaultTrips;
+    const saved = localStorage.getItem("travelTrips");
+    return saved ? JSON.parse(saved) : defaultTrips;
   });
 
-  // Save trips to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('travelTrips', JSON.stringify(trips));
+    localStorage.setItem("travelTrips", JSON.stringify(trips));
   }, [trips]);
 
   const deleteTrip = (id) => setTrips((prev) => prev.filter((t) => t.id !== id));
 
-  const addOrUpdateTrip = (trip) => {
-    if (trip.id) {
-      // Editing existing trip
-      setTrips((prev) => prev.map((t) => (t.id === trip.id ? trip : t)));
+  const addOrUpdateTrip = (tripData) => {
+    if (tripData.id) {
+      // Edit existing trip
+      setTrips((prev) => prev.map((t) => (t.id === tripData.id ? tripData : t)));
     } else {
-      // Adding new trip
-      setTrips((prev) => [...prev, { ...trip, id: Date.now() }]);
+      // Add new trip
+      const newTrip = {
+        ...tripData,
+        id: Date.now(),
+        itinerary: tripData.itinerary || [],
+        notes: tripData.notes || "",
+      };
+      setTrips((prev) => [...prev, newTrip]);
     }
   };
 
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route 
-        path="/dashboard" 
-        element={<Dashboard trips={trips} onDelete={deleteTrip} />} 
-      />
-      <Route 
-        path="/addtrip" 
-        element={<TripFormWrapper trips={trips} onSubmit={addOrUpdateTrip} />} 
-      />
-      <Route 
-        path="/addtrip/:id" 
-        element={<TripFormWrapper trips={trips} onSubmit={addOrUpdateTrip} />} 
-      />
-      <Route 
-        path="/trip/:id" 
-        element={
-          <TripDetailsWrapper 
-            trips={trips} 
-            onUpdate={addOrUpdateTrip} 
-            onDelete={deleteTrip} 
-          />
-        } 
-      />
+      <Route path="/dashboard" element={<Dashboard trips={trips} onDelete={deleteTrip} />} />
+      <Route path="/addtrip" element={<TripFormWrapper trips={trips} onSubmit={addOrUpdateTrip} />} />
+      <Route path="/addtrip/:id" element={<TripFormWrapper trips={trips} onSubmit={addOrUpdateTrip} />} />
+      <Route path="/trip/:id" element={<TripDetailsWrapper trips={trips} onUpdate={addOrUpdateTrip} onDelete={deleteTrip} />} />
       <Route path="/features" element={<Features />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
